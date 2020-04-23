@@ -1,5 +1,7 @@
 
 
+import Util
+
 class Logics:
     def __init__(self):
         self.tmp = ""
@@ -61,3 +63,23 @@ class Logics:
         add more rules of "ACTGU"
         """
         return flag
+
+    def get_guide_ref(self, cds_dict, path, init):
+        util = Util.Utils()
+        result_dict = {}
+        idx = 1
+        for key , vals in cds_dict.items():
+            tmp_p_dict, tmp_m_dict = util.read_seq_dict(path, key, init)
+            for val_dict in vals.values():
+                if 'CDS' in val_dict:
+                    cds_seq_arr = val_dict['CDS']
+                    for cds_seq_exon_num in cds_seq_arr:
+                        for i in range(cds_seq_exon_num[0] + 1, cds_seq_exon_num[1]):
+                            if i in tmp_p_dict:
+                                result_dict[idx] = {}
+                                idx = idx + 1
+                            if i in tmp_m_dict:
+                                result_dict[idx] = {}
+                                idx = idx + 1
+
+        return result_dict
