@@ -77,9 +77,27 @@ class Logics:
                         for i in range(cds_seq_exon_num[0] + 1, cds_seq_exon_num[1]):
                             if i in tmp_p_dict:
                                 result_dict[idx] = {}
+                                result_dict[idx].update({'Target gene name': val_dict['Target gene name']})
+                                result_dict[idx].update({'Ensembl transcript ID': val_dict['Ensembl transcript ID']})
+                                result_dict[idx].update({'Ensembl Gene ID': val_dict['Ensembl Gene ID']})
+                                if 'Description' in val_dict:
+                                    result_dict[idx].update({'Description': val_dict['Description']})
+                                result_dict[idx].update({'Position of Base After cut': i})
+                                result_dict[idx].update({'Target context sequence': tmp_p_dict[i]})
+                                result_dict[idx].update({'Strand': '+'})
+                                result_dict[idx].update({'Exon Number': cds_seq_exon_num[2]})
                                 idx = idx + 1
                             if i in tmp_m_dict:
                                 result_dict[idx] = {}
+                                result_dict[idx].update({'Target gene name': val_dict['Target gene name']})
+                                result_dict[idx].update({'Ensembl transcript ID': val_dict['Ensembl transcript ID']})
+                                result_dict[idx].update({'Ensembl Gene ID': val_dict['Ensembl Gene ID']})
+                                if 'Description' in val_dict:
+                                    result_dict[idx].update({'Description': val_dict['Description']})
+                                result_dict[idx].update({'Position of Base After cut': i})
+                                result_dict[idx].update({'Target context sequence': tmp_m_dict[i]})
+                                result_dict[idx].update({'Strand': '-'})
+                                result_dict[idx].update({'Exon Number': cds_seq_exon_num[2]})
                                 idx = idx + 1
 
         return result_dict
