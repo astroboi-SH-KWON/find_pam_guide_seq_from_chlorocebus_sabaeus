@@ -100,4 +100,5 @@ class Logics:
                                 result_dict[idx].update({'Exon Number': cds_seq_exon_num[2]})
                                 idx = idx + 1
 
+
         return result_dict
