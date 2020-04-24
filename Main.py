@@ -34,7 +34,6 @@ def main():
 
     logic.get_guide_ref(cds_dict, WORK_DIR + SEQ_FNAME, INITIAL_SEQ)
 
-    # util.make_excel(result_dict, INITIAL_SEQ)
 
 
 start_time = clock()

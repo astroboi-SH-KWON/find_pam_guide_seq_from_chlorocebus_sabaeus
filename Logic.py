@@ -97,8 +97,13 @@ class Logics:
                                 result_dict[idx].update({'Target context sequence': tmp_p_dict[i]})
                                 result_dict[idx].update({'Strand': '+'})
                                 result_dict[idx].update({'Exon Number': cds_seq_exon_num[2]})
-                                this_len = prent_cds_len - (int(cds_seq_exon_num[1]) - i + 1)
-                                result_dict[idx].update({'Ratio': this_len / total_cds_len})
+                                # the pos ratio out of total CDS depends on which strand gene occurs
+                                if '+' == val_dict['Strand']:
+                                    this_len = prent_cds_len - (int(cds_seq_exon_num[1]) - i + 1)
+                                    result_dict[idx].update({'Ratio': this_len / total_cds_len})
+                                else:
+                                    this_len = prent_cds_len - (i - int(cds_seq_exon_num[0]) + 1)
+                                    result_dict[idx].update({'Ratio': this_len / total_cds_len})
                                 idx = idx + 1
                             if i in tmp_m_dict:
                                 result_dict[idx] = {}
@@ -112,8 +117,13 @@ class Logics:
                                 result_dict[idx].update({'Target context anti sequence': tmp_m_dict[i].split(" ")[1]})
                                 result_dict[idx].update({'Strand': '-'})
                                 result_dict[idx].update({'Exon Number': cds_seq_exon_num[2]})
-                                this_len = prent_cds_len - (i - int(cds_seq_exon_num[0]) + 1)
-                                result_dict[idx].update({'Ratio': this_len / total_cds_len})
+                                # the pos ratio out of total CDS depends on which strand gene occurs
+                                if '+' == val_dict['Strand']:
+                                    this_len = prent_cds_len - (int(cds_seq_exon_num[1]) - i + 1)
+                                    result_dict[idx].update({'Ratio': this_len / total_cds_len})
+                                else:
+                                    this_len = prent_cds_len - (i - int(cds_seq_exon_num[0]) + 1)
+                                    result_dict[idx].update({'Ratio': this_len / total_cds_len})
                                 idx = idx + 1
             print("DONE file_" + key)
             util.make_excel(result_dict, init, key)

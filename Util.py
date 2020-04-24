@@ -338,7 +338,7 @@ class Utils:
         sheet.cell(row=row, column=13, value='order PAM')
         sheet.cell(row=row, column=14, value='Exon Number')
         sheet.cell(row=row, column=15, value='DeepCas9 score')
-        sheet.cell(row=row, column=16, value='Ratio')
+        sheet.cell(row=row, column=16, value='target site (cleavage site)')
 
         for key, val_arr in result_dict.items():
             row = row + 1
