@@ -77,9 +77,9 @@ class Utils:
                     if chr_fname == "MT":
                         continue
 
-                    # TODO delete when it's done
-                    elif chr_fname == "20":
-                        break
+                    # # TODO delete when it's done
+                    elif chr_fname in ["X","Y","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29"]:
+                        continue
                     if chr_fname not in tmp_dict:
                         tmp_dict[chr_fname] = {}
                         idx = 0
@@ -258,7 +258,7 @@ class Utils:
             std_tot_len = add_seq1_len + spacer_len + pam_len + add_seq2_len
             with open(path + fil_num_str + self.ext_fa, "r") as f:
                 header = f.readline()  # header ignored : >chr19
-                print("header : " + header)
+                # print("header : " + header)
 
                 idx = 1
                 tmp_p_str = ""
@@ -272,6 +272,9 @@ class Utils:
                         continue
                     elif "\r" in c:
                         continue
+                    # # TODO delete when it's done
+                    # if idx > 6425128:
+                    #     break
 
                     tmp_p_str = tmp_p_str + c.upper()
                     tmp_m_str = tmp_m_str + logic.get_complementary(c.upper())
@@ -281,15 +284,19 @@ class Utils:
                         tmp_m_str = tmp_m_str[-std_tot_len:]
 
                     if len(tmp_p_str) == std_tot_len:
-                        if logic.match(0, tmp_p_str[-(add_seq2_len + pam_len):-add_seq2_len], pam_str):
-                            clvg_p_idx = idx - (pam_len + add_seq2_len + clvg_after_pam - 1)
-                            tmp_p_dict[clvg_p_idx] = tmp_p_str
-                            # print("tmp_p_str : " + tmp_p_str + ", clvg_p_idx : " + str(clvg_p_idx))
+                        # filter out 'N' seq
+                        if 'N' not in tmp_p_str:
+                            if logic.match(0, tmp_p_str[-(add_seq2_len + pam_len):-add_seq2_len], pam_str):
+                                clvg_p_idx = idx - (pam_len + add_seq2_len + clvg_after_pam - 1)
+                                tmp_p_dict[clvg_p_idx] = tmp_p_str
+                                # print("tmp_p_str : " + tmp_p_str + ", clvg_p_idx : " + str(clvg_p_idx))
 
-                        if logic.match(0, tmp_m_str[add_seq2_len:add_seq2_len + pam_len], pam_str[::-1]):
-                            clvg_m_idx = idx - (std_tot_len - 1) + add_seq2_len + pam_len + clvg_after_pam
-                            tmp_m_dict[clvg_m_idx] = tmp_m_str
-                            # print("tmp_m_str : " + tmp_m_str + ", clvg_m_idx : " + str(clvg_m_idx))
+                            if logic.match(0, tmp_m_str[add_seq2_len:add_seq2_len + pam_len], pam_str[::-1]):
+                                clvg_m_idx = idx - (std_tot_len - 1) + add_seq2_len + pam_len + clvg_after_pam
+                                # tmp_m_dict[clvg_m_idx] = tmp_m_str
+                                # expression is + strand type even in - strand
+                                tmp_m_dict[clvg_m_idx] = tmp_p_str + " " +tmp_m_str
+                                # print("tmp_m_str : " + tmp_m_str + ", clvg_m_idx : " + str(clvg_m_idx))
 
                     idx = idx + 1
 
@@ -303,5 +310,66 @@ class Utils:
                 gene_id = data_str.split(" ")[-1]
                 tmp_set.add(gene_id)
         return tmp_set
+
+    def make_excel(self, result_dict, init, f_num):
+        pam_len = len(init[0][0])
+        add_1_len = init[1]
+        spcr_len = init[2]
+        add_2_len = init[3]
+        clvg_after_pam = init[4]
+        path = init[5]
+
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+
+        row = 1
+        sheet.cell(row=row, column=1, value="INDEX")
+        sheet.cell(row=row, column=2, value='Target gene name')
+        sheet.cell(row=row, column=3, value='Description')
+        sheet.cell(row=row, column=4, value='Ensembl transcript ID')
+        sheet.cell(row=row, column=5, value='Ensembl Gene ID')
+        sheet.cell(row=row, column=6, value='Position of Base After cut')
+        sheet.cell(row=row, column=7, value='Strand')
+        sheet.cell(row=row, column=8, value='sgRNA Target sequence')
+        sheet.cell(row=row, column=9, value='Target context sequence')
+        sheet.cell(row=row, column=10, value='PAM')
+        sheet.cell(row=row, column=11, value='order sgRNA Target sequence')
+        sheet.cell(row=row, column=12, value='order Target context sequence')
+        sheet.cell(row=row, column=13, value='order PAM')
+        sheet.cell(row=row, column=14, value='Exon Number')
+        sheet.cell(row=row, column=15, value='DeepCas9 score')
+        sheet.cell(row=row, column=16, value='Ratio')
+
+        for key, val_arr in result_dict.items():
+            row = row + 1
+            sheet.cell(row=row, column=1, value=key)
+            if "ensembl".upper() != val_arr['Target gene name'].upper():
+                sheet.cell(row=row, column=2, value=val_arr['Target gene name'])
+            if 'Description' in val_arr:
+                sheet.cell(row=row, column=3, value=val_arr['Description'])
+            sheet.cell(row=row, column=4, value=val_arr['Ensembl transcript ID'])
+            sheet.cell(row=row, column=5, value=val_arr['Ensembl Gene ID'])
+            sheet.cell(row=row, column=6, value=val_arr['Position of Base After cut'])
+            strand = val_arr['Strand']
+            sheet.cell(row=row, column=7, value=strand)
+            seq_str = val_arr['Target context sequence']
+            if strand == '+':
+                sheet.cell(row=row, column=8, value=seq_str[add_1_len:add_1_len + spcr_len])
+                sheet.cell(row=row, column=9, value=seq_str)
+                sheet.cell(row=row, column=10, value=seq_str[add_1_len + spcr_len:-add_2_len])
+                sheet.cell(row=row, column=11, value=seq_str[add_1_len:add_1_len + spcr_len])
+                sheet.cell(row=row, column=12, value=seq_str)
+                sheet.cell(row=row, column=13, value=seq_str[add_1_len + spcr_len:-add_2_len])
+            else:
+                comp_seq_str = val_arr['Target context anti sequence']
+                sheet.cell(row=row, column=8, value=seq_str[add_2_len + pam_len:add_2_len + pam_len + spcr_len])
+                sheet.cell(row=row, column=9, value=seq_str)
+                sheet.cell(row=row, column=10, value=seq_str[add_2_len:add_2_len + pam_len])
+                sheet.cell(row=row, column=11, value=comp_seq_str[add_2_len + pam_len:add_2_len + pam_len + spcr_len][::-1])
+                sheet.cell(row=row, column=12, value=comp_seq_str[::-1])
+                sheet.cell(row=row, column=13, value=comp_seq_str[add_2_len:add_2_len + pam_len][::-1])
+            sheet.cell(row=row, column=14, value=val_arr['Exon Number'])
+            sheet.cell(row=row, column=16, value=val_arr['Ratio'])
+        workbook.save(filename=path + "chlorochebus_sabaeus_" + f_num + "_" + str(clock()) + self.ext_xlsx)
 
 

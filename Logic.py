@@ -66,15 +66,26 @@ class Logics:
 
     def get_guide_ref(self, cds_dict, path, init):
         util = Util.Utils()
-        result_dict = {}
+        # result_dict = {}
         idx = 1
         for key , vals in cds_dict.items():
+
+            result_dict = {}
             tmp_p_dict, tmp_m_dict = util.read_seq_dict(path, key, init)
             for val_dict in vals.values():
                 if 'CDS' in val_dict:
                     cds_seq_arr = val_dict['CDS']
-                    for cds_seq_exon_num in cds_seq_arr:
-                        for i in range(cds_seq_exon_num[0] + 1, cds_seq_exon_num[1]):
+
+                    total_cds_len = 0
+                    for cds_tmp in cds_seq_arr:
+                        cds_seq_tmp = cds_tmp.split(" ")
+                        total_cds_len = total_cds_len + (int(cds_seq_tmp[1]) - int(cds_seq_tmp[0]) + 1)
+
+                    prent_cds_len = 0
+                    for cds_seq in cds_seq_arr:
+                        cds_seq_exon_num = cds_seq.split(" ")
+                        prent_cds_len = prent_cds_len + (int(cds_seq_exon_num[1]) - int(cds_seq_exon_num[0]) + 1)
+                        for i in range(int(cds_seq_exon_num[0]) + 1, int(cds_seq_exon_num[1]) + 1):
                             if i in tmp_p_dict:
                                 result_dict[idx] = {}
                                 result_dict[idx].update({'Target gene name': val_dict['Target gene name']})
@@ -86,6 +97,8 @@ class Logics:
                                 result_dict[idx].update({'Target context sequence': tmp_p_dict[i]})
                                 result_dict[idx].update({'Strand': '+'})
                                 result_dict[idx].update({'Exon Number': cds_seq_exon_num[2]})
+                                this_len = prent_cds_len - (int(cds_seq_exon_num[1]) - i + 1)
+                                result_dict[idx].update({'Ratio': this_len / total_cds_len})
                                 idx = idx + 1
                             if i in tmp_m_dict:
                                 result_dict[idx] = {}
@@ -95,10 +108,13 @@ class Logics:
                                 if 'Description' in val_dict:
                                     result_dict[idx].update({'Description': val_dict['Description']})
                                 result_dict[idx].update({'Position of Base After cut': i})
-                                result_dict[idx].update({'Target context sequence': tmp_m_dict[i]})
+                                result_dict[idx].update({'Target context sequence': tmp_m_dict[i].split(" ")[0]})
+                                result_dict[idx].update({'Target context anti sequence': tmp_m_dict[i].split(" ")[1]})
                                 result_dict[idx].update({'Strand': '-'})
                                 result_dict[idx].update({'Exon Number': cds_seq_exon_num[2]})
+                                this_len = prent_cds_len - (i - int(cds_seq_exon_num[0]) + 1)
+                                result_dict[idx].update({'Ratio': this_len / total_cds_len})
                                 idx = idx + 1
-
-
-        return result_dict
+            print("DONE file_" + key)
+            util.make_excel(result_dict, init, key)
+        # return result_dict
