@@ -1,6 +1,7 @@
 
 
 import Util
+import LogicPre
 
 class Logics:
     def __init__(self):
@@ -66,12 +67,13 @@ class Logics:
 
     def get_guide_ref(self, cds_dict, path, init):
         util = Util.Utils()
+        logic_pre = LogicPre.LogicsPre()
         # result_dict = {}
         idx = 1
         for key , vals in cds_dict.items():
 
             result_dict = {}
-            tmp_p_dict, tmp_m_dict = util.read_seq_dict(path, key, init)
+            tmp_p_dict, tmp_m_dict = logic_pre.read_seq_dict(path, key, init)
             for val_dict in vals.values():
                 if 'CDS' in val_dict:
                     cds_seq_arr = val_dict['CDS']

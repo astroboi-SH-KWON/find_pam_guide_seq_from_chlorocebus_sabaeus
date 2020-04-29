@@ -1,7 +1,7 @@
 from time import clock
 
-import Util
 import Logic
+import LogicPre
 ############### start to set env ################
 WORK_DIR = "D:/000_WORK/SongMyunJae_YuGooSang/20200417/WORK_DIR/"
 
@@ -23,16 +23,17 @@ INITIAL_SEQ = [PAM_SEQ, ADD_SEQ1_LEN, SPACER_LEN, ADD_SEQ2_LEN, CLVG_AFTER_PAM, 
 ############### end setting env  ################
 
 def main():
-    util = Util.Utils()
+    logic_pre = LogicPre.LogicsPre()
     logic = Logic.Logics()
 
     for i in range(1,30):
         FILE_NAME_LIST.append(str(i))
-    description_dict = util.read_dat_file_for_description(WORK_DIR + CDS_EACH_FNAME, FILE_NAME_LIST)
+    description_dict = logic_pre.read_dat_file_for_description(WORK_DIR + CDS_EACH_FNAME, FILE_NAME_LIST)
 
-    cds_dict, sm_gene_diff_trscrpt = util.read_gtf_file_by_line_to_dict(WORK_DIR + CDS_FNAME, description_dict)
+    cds_dict, sm_gene_diff_trscrpt = logic_pre.read_gtf_file_by_line_to_dict(WORK_DIR + CDS_FNAME, description_dict)
 
     logic.get_guide_ref(cds_dict, WORK_DIR + SEQ_FNAME, INITIAL_SEQ)
+
 
 
 
