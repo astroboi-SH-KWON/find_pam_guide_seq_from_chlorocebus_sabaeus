@@ -1,7 +1,7 @@
 
 
 import Util
-import LogicPre
+import LogicPrep
 
 class Logics:
     def __init__(self):
@@ -67,7 +67,7 @@ class Logics:
 
     def get_guide_ref(self, cds_dict, path, init):
         util = Util.Utils()
-        logic_pre = LogicPre.LogicsPre()
+        logic_pre = LogicPrep.LogicsPrep()
         # result_dict = {}
         idx = 1
         for key , vals in cds_dict.items():

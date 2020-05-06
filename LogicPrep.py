@@ -2,7 +2,7 @@ import re
 
 import Logic
 
-class LogicsPre:
+class LogicsPrep:
 
     def __init__(self):
         self.ext_fa = ".fa"

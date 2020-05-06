@@ -5,7 +5,7 @@ import numpy as np
 
 import Util
 import Logic
-import LogicPre
+import LogicPrep
 import Valid
 ############### start to set env ################
 WORK_DIR = "D:/000_WORK/SongMyunJae_YuGooSang/20200417/WORK_DIR/"
@@ -36,7 +36,7 @@ INITIAL_SEQ = [PAM_SEQ, ADD_SEQ1_LEN, SPACER_LEN, ADD_SEQ2_LEN, CLVG_AFTER_PAM, 
 def main1():
     util = Util.Utils()
     logic = Logic.Logics()
-    logic_pre = LogicPre.LogicsPre()
+    logic_pre = LogicPrep.LogicsPrep()
     valid = Valid.Validations()
 
 

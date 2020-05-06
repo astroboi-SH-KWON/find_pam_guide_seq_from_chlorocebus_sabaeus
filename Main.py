@@ -1,7 +1,7 @@
 from time import clock
 
 import Logic
-import LogicPre
+import LogicPrep
 ############### start to set env ################
 WORK_DIR = "D:/000_WORK/SongMyunJae_YuGooSang/20200417/WORK_DIR/"
 
@@ -23,7 +23,7 @@ INITIAL_SEQ = [PAM_SEQ, ADD_SEQ1_LEN, SPACER_LEN, ADD_SEQ2_LEN, CLVG_AFTER_PAM, 
 ############### end setting env  ################
 
 def main():
-    logic_pre = LogicPre.LogicsPre()
+    logic_pre = LogicPrep.LogicsPrep()
     logic = Logic.Logics()
 
     for i in range(1,30):
