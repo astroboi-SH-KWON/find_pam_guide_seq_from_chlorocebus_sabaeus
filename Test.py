@@ -29,9 +29,16 @@ CLVG_AFTER_PAM = 3
 
 FILE_NAME_LIST = ["X", "Y"]
 
-
 INITIAL_SEQ = [PAM_SEQ, ADD_SEQ1_LEN, SPACER_LEN, ADD_SEQ2_LEN, CLVG_AFTER_PAM, WORK_DIR]
-############### end setting env  ################
+
+############### CAS OFF FINDER ################
+CAS_OFF_EXCEL = "Chlorocebus_sabaeus_excel_20200424/Chlorocebus_sabaeus_filter_out_05_65_20200506/chlorochebus_sabaeus_w_cas9_scores_"
+CAS_OFF_TXT = "CAS_OFF_FINDER/INPUT/chlorochebus_sabaeus_cas_NGG_off"
+MAX_MISMATCH = 3
+SUB_SET_NUM = 100
+
+INITIAL_CAS_OFF = ['NGG', SPACER_LEN, MAX_MISMATCH, SUB_SET_NUM]
+############### end setting env ################
 
 def main1():
     util = Util.Utils()
@@ -58,6 +65,46 @@ def main_merge():
         print(f_num + " is DONE")
         util.make_excel_srt_by_deepcas9_scr(WORK_DIR + SORTED_EXCEL_FNAME, f_num, tmp_dict)
 
+def make_cas_off_finder_input():
+    util = Util.Utils()
+    cas_input_set = set()
+    for i in range(1,30):
+        FILE_NAME_LIST.append(str(i))
+
+    total_len = 0
+    for f_num in FILE_NAME_LIST:
+        df_obj = util.read_excel_2_dataframe(WORK_DIR + CAS_OFF_EXCEL, f_num)
+
+        data_obj = df_obj.to_dict()
+        query_seq_dict = data_obj["order sgRNA Target sequence"]
+        pam_dict = data_obj["order PAM"]
+        query_seq_dict_len = len(query_seq_dict)
+        total_len += query_seq_dict_len
+        print("file [" + str(f_num) + "] len : " + str(query_seq_dict_len))
+
+        for query_idx in range(query_seq_dict_len):
+            cas_input_set.add(query_seq_dict[query_idx] + pam_dict[query_idx])
+
+
+    # df_obj = util.read_excel_2_dataframe(WORK_DIR + CAS_OFF_EXCEL, "Y")
+    # data_obj = df_obj.to_dict()
+    # query_seq_dict = data_obj["order sgRNA Target sequence"]
+    # pam_dict = data_obj["order PAM"]
+    #
+    # for query_idx in range(len(query_seq_dict)):
+    #     cas_input_set.add(query_seq_dict[query_idx] + pam_dict[query_idx])
+
+    print("total dict len : " + str(total_len))
+    print(" ")
+    print(" ")
+
+    util.make_txt_cas_off_finder_input(WORK_DIR + CAS_OFF_TXT, cas_input_set, INITIAL_CAS_OFF)
+
+
+
+
+
+
 def main2():
     num_key_dict = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6}
     for key, val in num_key_dict.items():
@@ -66,7 +113,8 @@ def main2():
 
 start_time = clock()
 print("start >>>>>>>>>>>>>>>>>>")
-main_merge()
+# main_merge()
+make_cas_off_finder_input()
 # main1()
 # main2()
 print("::::::::::: %.2f seconds ::::::::::::::" % (clock() - start_time))

@@ -3,6 +3,8 @@ from os.path import isfile, join
 import pandas as pd
 import openpyxl
 from time import clock
+import random
+import math
 
 class Utils:
     def __init__(self):
@@ -141,7 +143,8 @@ class Utils:
                     col = col + 1
                 row = row + 1
 
-        workbook.save(filename=path + f_num + "_" + str(clock()) + self.ext_xlsx)
+        # workbook.save(filename=path + f_num + "_" + str(clock()) + self.ext_xlsx)
+        workbook.save(filename=path + f_num + self.ext_xlsx)
 
     def merge_data(self, tmp_arr, df_obj):
         tmp_dict = {'Ensembl transcript ID': [
@@ -150,6 +153,11 @@ class Utils:
              'order sgRNA Target sequence', 'order Target context sequence', 'order PAM', 'Exon Number']]}
         data_obj = df_obj.to_dict()
         for i in range(len(tmp_arr)):
+            # filtering out if target site (cleavage site) < 0.05, >= 0.65
+            if data_obj['target site (cleavage site)'][i] < 0.05:
+                continue
+            if data_obj['target site (cleavage site)'][i] > 0.65:
+                continue
             trnscrpt_id = data_obj['Ensembl transcript ID'][i]
             tmp_list = []
             tmp_list.append(float(tmp_arr[i]))
@@ -172,6 +180,38 @@ class Utils:
                 tmp_dict[trnscrpt_id].append(tmp_list)
         return tmp_dict
 
+    """
+    make_txt_cas_off_finder_input : .txt input file for CAS_OFF_FINDER
+    :param
+        path
+        seq_set_pool
+        mis_mtch_num : maximum # of mismatch count
+        sub_set_num : sub set # of seq_set_pool to make .txt input files separately
+    """
+    def make_txt_cas_off_finder_input(self, path, seq_set_pool, init):
+        pam_seq = init[0]
+        spacr_len = init[1]
+        mis_mtch_num = init[2]
+        sub_set_num = init[3]
 
+        raw_each_sub_len = len(seq_set_pool) / sub_set_num
+        each_sub_len = int(raw_each_sub_len)
+        # * 1000) / 1000 : raw_each_sub_len 값이 반욜림되는 경우의 error 방지
+        raw_last_sub_len_to_add = int(((raw_each_sub_len - each_sub_len) * sub_set_num) * 1000)/1000
+        last_sub_len_to_add = math.ceil(raw_last_sub_len_to_add)
+        print("total len : " + str(len(seq_set_pool)) + ", raw_each_sub_len : " + str(raw_each_sub_len))
+        print("raw_last_sub_len_to_add : " + str(raw_last_sub_len_to_add) + " , last_sub_len_to_add : " + str(last_sub_len_to_add))
 
-
+        for fname_idx in range(sub_set_num):
+            if fname_idx == sub_set_num -1:
+                each_sub_len += last_sub_len_to_add
+            tmp_sub_set = set(random.sample(seq_set_pool, each_sub_len))
+            seq_set_pool -= tmp_sub_set
+            print("tmp_sub_set_" + str(fname_idx) + " len : " + str(len(tmp_sub_set)))
+            print("rest total len : " + str(len(seq_set_pool)))
+            print(" ")
+            with open(path + str(fname_idx) + self.ext_txt, 'a') as f:
+                f.write("chlorocebus_sabaeus_chr" + "\n")
+                f.write("N"*spacr_len + pam_seq + "\n")
+                for data_str in tmp_sub_set:
+                    f.write(data_str + " " + str(mis_mtch_num) +"\n")
