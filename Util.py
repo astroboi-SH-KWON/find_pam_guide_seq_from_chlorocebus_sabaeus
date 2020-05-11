@@ -146,14 +146,14 @@ class Utils:
         # workbook.save(filename=path + f_num + "_" + str(clock()) + self.ext_xlsx)
         workbook.save(filename=path + f_num + self.ext_xlsx)
 
-    def merge_data(self, tmp_arr, df_obj):
+    def merge_deep_cas_9_data(self, tmp_arr, df_obj):
         tmp_dict = {'Ensembl transcript ID': [
             ['DeepCas9 score', 'target site (cleavage site)', 'Target gene name', 'Description', 'Ensembl Gene ID',
              'Position of Base After cut', 'Strand', 'sgRNA Target sequence', 'Target context sequence', 'PAM',
              'order sgRNA Target sequence', 'order Target context sequence', 'order PAM', 'Exon Number']]}
         data_obj = df_obj.to_dict()
         for i in range(len(tmp_arr)):
-            # filtering out if target site (cleavage site) < 0.05, >= 0.65
+            # filtering out if target site (cleavage site) < 0.05, > 0.65
             if data_obj['target site (cleavage site)'][i] < 0.05:
                 continue
             if data_obj['target site (cleavage site)'][i] > 0.65:
@@ -188,11 +188,13 @@ class Utils:
         mis_mtch_num : maximum # of mismatch count
         sub_set_num : sub set # of seq_set_pool to make .txt input files separately
     """
-    def make_txt_cas_off_finder_input(self, path, seq_set_pool, init):
+    def make_txt_cas_off_finder_input(self, seq_set_pool, init):
         pam_seq = init[0]
         spacr_len = init[1]
         mis_mtch_num = init[2]
         sub_set_num = init[3]
+        path = init[4]
+        ref_srv_path = init[5]
 
         raw_each_sub_len = len(seq_set_pool) / sub_set_num
         each_sub_len = int(raw_each_sub_len)
@@ -211,7 +213,90 @@ class Utils:
             print("rest total len : " + str(len(seq_set_pool)))
             print(" ")
             with open(path + str(fname_idx) + self.ext_txt, 'a') as f:
-                f.write("chlorocebus_sabaeus_chr" + "\n")
+                f.write(ref_srv_path + "\n")
                 f.write("N"*spacr_len + pam_seq + "\n")
                 for data_str in tmp_sub_set:
                     f.write(data_str + " " + str(mis_mtch_num) +"\n")
+
+    def read_txt_to_dict(self, path, file_ext, cnt):
+        result_dict = {}
+        for idx in range(cnt):
+            with open(path + str(idx) + file_ext, "r") as f:
+                header = f.readline()
+                # print("header : " + header)# Sequence	0	1	2	3
+
+                while True:
+                    read_line = f.readline().replace("\n","")
+                    if read_line == "":
+                        break
+                    read_line_arr = read_line.split("\t")
+                    tmp_list = []
+                    for i in range(1, len(read_line_arr)):
+                        tmp_list.append(int(read_line_arr[i]))
+                    result_dict[read_line_arr[0]] = tmp_list
+
+        return result_dict
+
+    def make_excel_off_target_data(self, off_trgt_dict, df_obj, path, f_num):
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+
+        row = 1
+        sheet.cell(row=row, column=1, value="INDEX")
+        sheet.cell(row=row, column=2, value='Target gene name')
+        sheet.cell(row=row, column=3, value='Description')
+        sheet.cell(row=row, column=4, value='Ensembl transcript ID')
+        sheet.cell(row=row, column=5, value='Ensembl Gene ID')
+        sheet.cell(row=row, column=6, value='Position of Base After cut')
+        sheet.cell(row=row, column=7, value='Strand')
+        sheet.cell(row=row, column=8, value='sgRNA Target sequence')
+        sheet.cell(row=row, column=9, value='Target context sequence')
+        sheet.cell(row=row, column=10, value='PAM')
+        sheet.cell(row=row, column=11, value='order sgRNA Target sequence')
+        sheet.cell(row=row, column=12, value='order Target context sequence')
+        sheet.cell(row=row, column=13, value='order PAM')
+        sheet.cell(row=row, column=14, value='Exon Number')
+        sheet.cell(row=row, column=15, value='DeepCas9 score')
+        sheet.cell(row=row, column=16, value='target site (cleavage site)')
+        col_head = 17
+        for mis_match_cnt in range(len(off_trgt_dict[list(off_trgt_dict)[0]])):
+            sheet.cell(row=row, column=col_head, value=str(mis_match_cnt))
+            col_head += 1
+
+        row += 1
+        data_obj = df_obj.to_dict()
+        idx = 0
+        for i in range(len(data_obj['Ensembl transcript ID'])):
+            ordr_trgt_seq = data_obj['order sgRNA Target sequence'][i]
+            ordr_pam = data_obj['order PAM'][i]
+
+            if ordr_trgt_seq + ordr_pam in off_trgt_dict:
+                off_trgt_arr = off_trgt_dict[ordr_trgt_seq + ordr_pam]
+                # filtering out if result of (mis_match = 0) > 1
+                if off_trgt_arr[0] > 1:
+                    continue
+                col = 17
+                for result_cnt in off_trgt_arr:
+                    sheet.cell(row=row, column=col, value=str(result_cnt))
+                    col += 1
+            idx += 1
+            sheet.cell(row=row, column=1, value=str(idx))
+            sheet.cell(row=row, column=2, value=data_obj['Target gene name'][i])
+            sheet.cell(row=row, column=3, value=data_obj['Description'][i])
+            sheet.cell(row=row, column=4, value=data_obj['Ensembl transcript ID'][i])
+            sheet.cell(row=row, column=5, value=data_obj['Ensembl Gene ID'][i])
+            sheet.cell(row=row, column=6, value=data_obj['Position of Base After cut'][i])
+            sheet.cell(row=row, column=7, value=data_obj['Strand'][i])
+            sheet.cell(row=row, column=8, value=data_obj['sgRNA Target sequence'][i])
+            sheet.cell(row=row, column=9, value=data_obj['Target context sequence'][i])
+            sheet.cell(row=row, column=10, value=data_obj['PAM'][i])
+            sheet.cell(row=row, column=11, value=ordr_trgt_seq)
+            sheet.cell(row=row, column=12, value=data_obj['order Target context sequence'][i])
+            sheet.cell(row=row, column=13, value=ordr_pam)
+            sheet.cell(row=row, column=14, value=data_obj['Exon Number'][i])
+            sheet.cell(row=row, column=15, value=data_obj['DeepCas9 score'][i])
+            sheet.cell(row=row, column=16, value=data_obj['target site (cleavage site)'][i])
+
+            row += 1
+
+        workbook.save(filename=path + f_num + "_" + str(clock()) + self.ext_xlsx)
