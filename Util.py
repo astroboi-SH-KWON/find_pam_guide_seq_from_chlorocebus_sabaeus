@@ -180,48 +180,17 @@ class Utils:
                 tmp_dict[trnscrpt_id].append(tmp_list)
         return tmp_dict
 
-    """
-    make_txt_cas_off_finder_input : .txt input file for CAS_OFF_FINDER
-    :param
-        path
-        seq_set_pool
-        mis_mtch_num : maximum # of mismatch count
-        sub_set_num : sub set # of seq_set_pool to make .txt input files separately
-    """
-    def make_txt_cas_off_finder_input(self, seq_set_pool, init):
-        pam_seq = init[0]
-        spacr_len = init[1]
-        mis_mtch_num = init[2]
-        sub_set_num = init[3]
-        path = init[4]
-        ref_srv_path = init[5]
+    def read_txt_to_dict(self, init):
+        path = init[0]
+        file_ext = init[1]
+        cnt = init[2]
+        pam_len = len(init[3])
 
-        raw_each_sub_len = len(seq_set_pool) / sub_set_num
-        each_sub_len = int(raw_each_sub_len)
-        # * 1000) / 1000 : raw_each_sub_len 값이 반욜림되는 경우의 error 방지
-        raw_last_sub_len_to_add = int(((raw_each_sub_len - each_sub_len) * sub_set_num) * 1000)/1000
-        last_sub_len_to_add = math.ceil(raw_last_sub_len_to_add)
-        print("total len : " + str(len(seq_set_pool)) + ", raw_each_sub_len : " + str(raw_each_sub_len))
-        print("raw_last_sub_len_to_add : " + str(raw_last_sub_len_to_add) + " , last_sub_len_to_add : " + str(last_sub_len_to_add))
-
-        for fname_idx in range(sub_set_num):
-            if fname_idx == sub_set_num -1:
-                each_sub_len += last_sub_len_to_add
-            tmp_sub_set = set(random.sample(seq_set_pool, each_sub_len))
-            seq_set_pool -= tmp_sub_set
-            print("tmp_sub_set_" + str(fname_idx) + " len : " + str(len(tmp_sub_set)))
-            print("rest total len : " + str(len(seq_set_pool)))
-            print(" ")
-            with open(path + str(fname_idx) + self.ext_txt, 'a') as f:
-                f.write(ref_srv_path + "\n")
-                f.write("N"*spacr_len + pam_seq + "\n")
-                for data_str in tmp_sub_set:
-                    f.write(data_str + " " + str(mis_mtch_num) +"\n")
-
-    def read_txt_to_dict(self, path, file_ext, cnt):
         result_dict = {}
         for idx in range(cnt):
-            with open(path + str(idx) + file_ext, "r") as f:
+            real_path = path + str(idx) + file_ext
+            print(real_path)
+            with open(real_path, "r") as f:
                 header = f.readline()
                 # print("header : " + header)# Sequence	0	1	2	3
 
@@ -233,11 +202,14 @@ class Utils:
                     tmp_list = []
                     for i in range(1, len(read_line_arr)):
                         tmp_list.append(int(read_line_arr[i]))
-                    result_dict[read_line_arr[0]] = tmp_list
+
+                    spacer_seq = read_line_arr[0][:-pam_len]
+                    if spacer_seq not in result_dict:
+                        result_dict[spacer_seq] = tmp_list
 
         return result_dict
 
-    def make_excel_off_target_data(self, off_trgt_dict, df_obj, path, f_num):
+    def make_excel_off_target_data(self, off_trgt_dict, df_obj, path, f_num, seq_cnt_dict, gd_seq_num, re_off_trgt_dict):
         workbook = openpyxl.Workbook()
         sheet = workbook.active
 
@@ -259,6 +231,7 @@ class Utils:
         sheet.cell(row=row, column=15, value='DeepCas9 score')
         sheet.cell(row=row, column=16, value='target site (cleavage site)')
         col_head = 17
+        # to make columns for off_target results
         for mis_match_cnt in range(len(off_trgt_dict[list(off_trgt_dict)[0]])):
             sheet.cell(row=row, column=col_head, value=str(mis_match_cnt))
             col_head += 1
@@ -266,24 +239,83 @@ class Utils:
         row += 1
         data_obj = df_obj.to_dict()
         idx = 0
-        for i in range(len(data_obj['Ensembl transcript ID'])):
+        sec_candidate = []
+        data_obj_dcit_len = len(data_obj['Ensembl transcript ID'])
+        for i in range(data_obj_dcit_len):
             ordr_trgt_seq = data_obj['order sgRNA Target sequence'][i]
-            ordr_pam = data_obj['order PAM'][i]
+            trnscrpt_id = data_obj['Ensembl transcript ID'][i]
+            deep_cas_9_score = data_obj['DeepCas9 score'][i]
 
-            if ordr_trgt_seq + ordr_pam in off_trgt_dict:
-                off_trgt_arr = off_trgt_dict[ordr_trgt_seq + ordr_pam]
-                # filtering out if result of (mis_match = 0) > 1
-                if off_trgt_arr[0] > 1:
+
+
+            if ordr_trgt_seq in off_trgt_dict:
+                off_trgt_arr = off_trgt_dict[ordr_trgt_seq]
+
+                # the last row
+                if i == data_obj_dcit_len - 1:
+                    idx, row = self.add_candidate(idx, row, sheet, trnscrpt_id, seq_cnt_dict, sec_candidate,
+                                                  data_obj, off_trgt_dict, gd_seq_num)
                     continue
-                col = 17
-                for result_cnt in off_trgt_arr:
-                    sheet.cell(row=row, column=col, value=str(result_cnt))
-                    col += 1
+                else:
+                    # the last seq of trnscrpt_id
+                    if trnscrpt_id != data_obj['Ensembl transcript ID'][i + 1]:
+                        idx, row = self.add_candidate(idx, row, sheet, trnscrpt_id, seq_cnt_dict, sec_candidate,
+                                                      data_obj, off_trgt_dict, gd_seq_num)
+                        continue
+                    else:
+                        # filter out for 1st round
+                        if trnscrpt_id in seq_cnt_dict:
+                            # if we got guide-sequences as many as gd_seq_num
+                            if seq_cnt_dict[trnscrpt_id] > gd_seq_num - 1:
+                                sec_candidate.clear()
+                                continue
+
+                        # if result of (mis_match = 0) > 1
+                        if off_trgt_arr[0] > 1:
+                            continue
+                        # if deep_cas_9_score < 50
+                        if deep_cas_9_score < 50:
+                            continue
+                        # if result of (mis_match = 1) > 0
+                        if off_trgt_arr[1] > 0:
+                            sec_candidate.append(i)
+                            continue
+                        # if result of (mis_match = 2) > 0
+                        if off_trgt_arr[2] > 0:
+                            sec_candidate.append(i)
+                            continue
+
+                        # count # of seq group by transcript_id
+                        if trnscrpt_id in seq_cnt_dict:
+                            # if we got guide-sequences as many as gd_seq_num
+                            if seq_cnt_dict[trnscrpt_id] > gd_seq_num - 1:
+                                sec_candidate.clear()
+                                continue
+                            seq_cnt_dict[trnscrpt_id] += 1
+                        else:
+                            seq_cnt_dict.update({trnscrpt_id: 1})
+
+            else:
+                if trnscrpt_id in seq_cnt_dict:
+                    if seq_cnt_dict[trnscrpt_id] < gd_seq_num:
+                        idx, row = self.add_candidate(idx, row, sheet, trnscrpt_id, seq_cnt_dict, sec_candidate,
+                                                      data_obj, off_trgt_dict, gd_seq_num)
+
+                        if trnscrpt_id in re_off_trgt_dict:
+                            re_off_trgt_dict[trnscrpt_id].append(ordr_trgt_seq)
+                        else:
+                            re_off_trgt_dict.update({trnscrpt_id: [ordr_trgt_seq]})
+                else:
+                    seq_cnt_dict.update({trnscrpt_id: 0})
+                    re_off_trgt_dict.update({trnscrpt_id: [ordr_trgt_seq]})
+
+                continue
+
             idx += 1
             sheet.cell(row=row, column=1, value=str(idx))
             sheet.cell(row=row, column=2, value=data_obj['Target gene name'][i])
             sheet.cell(row=row, column=3, value=data_obj['Description'][i])
-            sheet.cell(row=row, column=4, value=data_obj['Ensembl transcript ID'][i])
+            sheet.cell(row=row, column=4, value=trnscrpt_id)
             sheet.cell(row=row, column=5, value=data_obj['Ensembl Gene ID'][i])
             sheet.cell(row=row, column=6, value=data_obj['Position of Base After cut'][i])
             sheet.cell(row=row, column=7, value=data_obj['Strand'][i])
@@ -292,11 +324,134 @@ class Utils:
             sheet.cell(row=row, column=10, value=data_obj['PAM'][i])
             sheet.cell(row=row, column=11, value=ordr_trgt_seq)
             sheet.cell(row=row, column=12, value=data_obj['order Target context sequence'][i])
-            sheet.cell(row=row, column=13, value=ordr_pam)
+            sheet.cell(row=row, column=13, value=data_obj['order PAM'][i])
             sheet.cell(row=row, column=14, value=data_obj['Exon Number'][i])
-            sheet.cell(row=row, column=15, value=data_obj['DeepCas9 score'][i])
+            sheet.cell(row=row, column=15, value=deep_cas_9_score)
             sheet.cell(row=row, column=16, value=data_obj['target site (cleavage site)'][i])
+            col = 17
+            for result_cnt in off_trgt_arr:
+                sheet.cell(row=row, column=col, value=str(result_cnt))
+                col += 1
 
             row += 1
 
         workbook.save(filename=path + f_num + "_" + str(clock()) + self.ext_xlsx)
+        # workbook.save(filename=path + f_num + self.ext_xlsx)
+
+        return seq_cnt_dict, re_off_trgt_dict
+
+    """
+    seq_cnt_dict = {trnscrpt_id: # of seq}
+    """
+    def make_tab_txt_seq_cnt_group_by_crpt_id(self, path, seq_cnt_dict):
+        with open(path + str(clock()) + self.ext_txt, "w" ) as f:
+            for crpt_id, seq_cnt in seq_cnt_dict.items():
+                f.write(crpt_id + "\t" + str(seq_cnt) + "\n")
+
+    """
+    re_off_trgt_list = {transcript_id: [re_off_target_seq...]}
+    """
+    def make_tab_txt_re_off_target_seq(self, path, re_off_trgt_list):
+        with open(path + str(clock()) + self.ext_txt, "w") as f:
+            for crpt_id, seq_list in re_off_trgt_list.items():
+                for seq_str in seq_list:
+                    f.write(crpt_id + "\t" + seq_str + "\n")
+
+    def add_sec_candidate(self, idx, row, sheet, data_obj, sec_i, off_trgt_dict, seq_cnt, thrd_candidate):
+        ordr_trgt_seq = data_obj['order sgRNA Target sequence'][sec_i]
+        trnscrpt_id = data_obj['Ensembl transcript ID'][sec_i]
+        deep_cas_9_score = data_obj['DeepCas9 score'][sec_i]
+
+        # print("trnscrpt_id : " + trnscrpt_id)
+
+        if off_trgt_dict[ordr_trgt_seq][1] > 0:
+            thrd_candidate.append(sec_i)
+            return idx, row, seq_cnt
+
+        idx += 1
+
+        sheet.cell(row=row, column=1, value=str(idx))
+        sheet.cell(row=row, column=2, value=data_obj['Target gene name'][sec_i])
+        sheet.cell(row=row, column=3, value=data_obj['Description'][sec_i])
+        sheet.cell(row=row, column=4, value=trnscrpt_id)
+        sheet.cell(row=row, column=5, value=data_obj['Ensembl Gene ID'][sec_i])
+        sheet.cell(row=row, column=6, value=data_obj['Position of Base After cut'][sec_i])
+        sheet.cell(row=row, column=7, value=data_obj['Strand'][sec_i])
+        sheet.cell(row=row, column=8, value=data_obj['sgRNA Target sequence'][sec_i])
+        sheet.cell(row=row, column=9, value=data_obj['Target context sequence'][sec_i])
+        sheet.cell(row=row, column=10, value=data_obj['PAM'][sec_i])
+        sheet.cell(row=row, column=11, value=ordr_trgt_seq)
+        sheet.cell(row=row, column=12, value=data_obj['order Target context sequence'][sec_i])
+        sheet.cell(row=row, column=13, value=data_obj['order PAM'][sec_i])
+        sheet.cell(row=row, column=14, value=data_obj['Exon Number'][sec_i])
+        sheet.cell(row=row, column=15, value=deep_cas_9_score)
+        sheet.cell(row=row, column=16, value=data_obj['target site (cleavage site)'][sec_i])
+        col = 17
+        for result_cnt in off_trgt_dict[ordr_trgt_seq]:
+            sheet.cell(row=row, column=col, value=str(result_cnt))
+            col += 1
+
+        return idx, row + 1, seq_cnt + 1
+
+    def add_thrd_candidate(self, idx, row, sheet, data_obj, thrd_i, off_trgt_dict, seq_cnt):
+        ordr_trgt_seq = data_obj['order sgRNA Target sequence'][thrd_i]
+        trnscrpt_id = data_obj['Ensembl transcript ID'][thrd_i]
+        deep_cas_9_score = data_obj['DeepCas9 score'][thrd_i]
+
+        idx += 1
+
+        sheet.cell(row=row, column=1, value=str(idx))
+        sheet.cell(row=row, column=2, value=data_obj['Target gene name'][thrd_i])
+        sheet.cell(row=row, column=3, value=data_obj['Description'][thrd_i])
+        sheet.cell(row=row, column=4, value=trnscrpt_id)
+        sheet.cell(row=row, column=5, value=data_obj['Ensembl Gene ID'][thrd_i])
+        sheet.cell(row=row, column=6, value=data_obj['Position of Base After cut'][thrd_i])
+        sheet.cell(row=row, column=7, value=data_obj['Strand'][thrd_i])
+        sheet.cell(row=row, column=8, value=data_obj['sgRNA Target sequence'][thrd_i])
+        sheet.cell(row=row, column=9, value=data_obj['Target context sequence'][thrd_i])
+        sheet.cell(row=row, column=10, value=data_obj['PAM'][thrd_i])
+        sheet.cell(row=row, column=11, value=ordr_trgt_seq)
+        sheet.cell(row=row, column=12, value=data_obj['order Target context sequence'][thrd_i])
+        sheet.cell(row=row, column=13, value=data_obj['order PAM'][thrd_i])
+        sheet.cell(row=row, column=14, value=data_obj['Exon Number'][thrd_i])
+        sheet.cell(row=row, column=15, value=deep_cas_9_score)
+        sheet.cell(row=row, column=16, value=data_obj['target site (cleavage site)'][thrd_i])
+        col = 17
+        for result_cnt in off_trgt_dict[ordr_trgt_seq]:
+            sheet.cell(row=row, column=col, value=str(result_cnt))
+            col += 1
+
+        return idx, row + 1, seq_cnt + 1
+
+    def add_candidate(self, idx, row, sheet, trnscrpt_id, seq_cnt_dict, sec_candidate, data_obj, off_trgt_dict, gd_seq_num):
+        # add 2nd round
+        if trnscrpt_id not in seq_cnt_dict:
+            seq_cnt_dict.update({trnscrpt_id: 0})
+        if seq_cnt_dict[trnscrpt_id] > gd_seq_num - 1:
+            return idx, row
+        thrd_candidate = []
+        for sec_i in sec_candidate:
+            idx, row, seq_cnt_dict[trnscrpt_id] = self.add_sec_candidate(idx, row, sheet, data_obj,
+                                                                        sec_i,
+                                                                        off_trgt_dict,
+                                                                        seq_cnt_dict[trnscrpt_id],
+                                                                        thrd_candidate)
+            if seq_cnt_dict[trnscrpt_id] > gd_seq_num - 1:
+                break
+        sec_candidate.clear()
+
+        # add 3rd round
+        if seq_cnt_dict[trnscrpt_id] < gd_seq_num:
+            for thrd_i in thrd_candidate:
+                idx, row, seq_cnt_dict[trnscrpt_id] = self.add_thrd_candidate(idx, row, sheet, data_obj,
+                                                                             thrd_i,
+                                                                             off_trgt_dict,
+                                                                             seq_cnt_dict[trnscrpt_id])
+                if seq_cnt_dict[trnscrpt_id] > gd_seq_num - 1:
+                    break
+        thrd_candidate.clear()
+
+        return idx, row
+
+
+
