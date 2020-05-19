@@ -49,8 +49,8 @@ class LogicsPrep:
                         continue
 
                     # # TODO delete when it's done
-                    elif chr_fname in ["X","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29"]:
-                        continue
+                    # elif chr_fname in ["X","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29"]:
+                    #     continue
 
                     if chr_fname not in tmp_dict:
                         tmp_dict[chr_fname] = {}
@@ -269,3 +269,53 @@ class LogicsPrep:
                     idx = idx + 1
 
         return tmp_p_dict, tmp_m_dict
+
+    def merge_excel_n_off_trgt(self, df_obj, off_trgt_dic):
+        result_dict = {}
+        data_obj = df_obj.to_dict()
+        data_obj_dcit_len = len(data_obj['Ensembl transcript ID'])
+
+        for i in range(data_obj_dcit_len):
+            trnscrpt_id = data_obj['Ensembl transcript ID'][i]
+            ordr_trgt_seq = data_obj['order sgRNA Target sequence'][i]
+            off_trgt_arr = []
+
+            if ordr_trgt_seq in off_trgt_dic:
+                off_trgt_arr.extend(off_trgt_dic[ordr_trgt_seq])
+
+            if trnscrpt_id in result_dict:
+                result_dict[trnscrpt_id].append([data_obj['Target gene name'][i]
+                                                      , data_obj['Description'][i]
+                                                      , data_obj['Ensembl Gene ID'][i]
+                                                      , data_obj['Position of Base After cut'][i]
+                                                      , data_obj['Strand'][i]
+                                                      , data_obj['sgRNA Target sequence'][i]
+                                                      , data_obj['Target context sequence'][i]
+                                                      , data_obj['PAM'][i]
+                                                      , ordr_trgt_seq
+                                                      , data_obj['order Target context sequence'][i]
+                                                      , data_obj['order PAM'][i]
+                                                      , data_obj['Exon Number'][i]
+                                                      , data_obj['DeepCas9 score'][i]
+                                                      , data_obj['target site (cleavage site)'][i]
+                                                      , off_trgt_arr
+                                                   ])
+            else:
+                result_dict.update({trnscrpt_id: [[data_obj['Target gene name'][i]
+                                                      , data_obj['Description'][i]
+                                                      , data_obj['Ensembl Gene ID'][i]
+                                                      , data_obj['Position of Base After cut'][i]
+                                                      , data_obj['Strand'][i]
+                                                      , data_obj['sgRNA Target sequence'][i]
+                                                      , data_obj['Target context sequence'][i]
+                                                      , data_obj['PAM'][i]
+                                                      , ordr_trgt_seq
+                                                      , data_obj['order Target context sequence'][i]
+                                                      , data_obj['order PAM'][i]
+                                                      , data_obj['Exon Number'][i]
+                                                      , data_obj['DeepCas9 score'][i]
+                                                      , data_obj['target site (cleavage site)'][i]
+                                                      , off_trgt_arr
+                                                   ]]})
+
+        return result_dict

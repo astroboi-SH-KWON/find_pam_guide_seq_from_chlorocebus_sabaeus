@@ -2,11 +2,11 @@ from time import clock
 import re
 import numpy as np
 
-
 import Util
 import Logic
 import LogicPrep
 import Valid
+
 ############### start to set env ################
 WORK_DIR = "D:/000_WORK/SongMyunJae_YuGooSang/20200417/WORK_DIR/"
 
@@ -24,6 +24,7 @@ ADD_SEQ2_LEN = 3
 CLVG_AFTER_PAM = 3
 
 FILE_NAME_LIST = ["X", "Y"]
+# FILE_NAME_LIST = ["Y"]
 
 INITIAL_SEQ = [PAM_SEQ, ADD_SEQ1_LEN, SPACER_LEN, ADD_SEQ2_LEN, CLVG_AFTER_PAM, WORK_DIR]
 
@@ -45,63 +46,65 @@ INITIAL_CAS_OFF = ['NGG', SPACER_LEN, MAX_MISMATCH, 18, WORK_DIR + CAS_OFF_TXT_T
 
 ########### MERGE OFF_TAGET RESULT #############
 CNT_RESULT_PATH = "CAS_OFF_FINDER/Output/CountResult/chlorochebus_sabaeus_top20_cas_NGG_off_"
+# CNT_RESULT_PATH = "CAS_OFF_FINDER/Output/CountResult/ACE2_DPP4_TMPRSS2_"
 CNT_RESULT_EXT = "_result_count.txt"
-GUIDE_SEQ_NUM = 4
-FILE_CNT = 18
+MAX_SEQ_NUM = 4
+# GUIDE_SEQ_NUM = 20
+FILE_CNT = 19
+# FILE_CNT = 1
 # FILE_CNT = SUB_SET_NUM
+
+FILTER_OUT_OPT = [["1", "0", "0"], ["1", "0", ""], ["1", "", ""]]
+CAS_SCORE_OPT = [50, 100]
+FILTER_OUT_OPT_TOT = [FILTER_OUT_OPT, CAS_SCORE_OPT]
 
 INITIAL_MRGE_OFF_TRGT = [WORK_DIR + CNT_RESULT_PATH, CNT_RESULT_EXT, FILE_CNT, PAM_N]
 ############### end setting env ################
 
-def merge_off_target():
+def merge_off_target_total():
     util = Util.Utils()
+    logic_prep = LogicPrep.LogicsPrep()
+    logic = Logic.Logics()
 
     off_trgt_dict = util.read_txt_to_dict(INITIAL_MRGE_OFF_TRGT)
-
-    # test_list = ["CAGAAGAATCCCTTGAACTG",
-    #                 "CCCAGCTACTCAGGAGGCTG",
-    #                 "GAACTCCAGCCTGGTCAACA",
-    #                 "TGTAATCCCAGCTACTCAGG",
-    #                 "TTGACCAGGCTGGAGTTCAG",
-    #                 "GAGGCAGAGGTTGCAGTGAG",
-    #                 "CGTGCCACTGAACTCCAGCC",
-    #                 "AAGAATCCCTTGAACTGAGG",
-    #                 "CCCTTGAACTGAGGAGGCAG",
-    #                 "GGAATCTTGCCCTGTTGACC",
-    #                 "GTCAGGAGTTCACACCAGCC",
-    #                 "CAGGTGCTCACCACCACACC",
-    #                 "ATACAAAAATTAGCCAGGTG",
-    #                 "ACCTGTAATCCCAGCTACTC",
-    #                 "TCTTGCCCTGTTGACCAGGC",
-    #                 "CCTCTGCCTCCTCAGTTCAA",
-    #                 "ACCTCTGCCTCCTCAGTTCA",
-    #                 "CAAAAATTAGCCAGGTGTGG",
-    #                 "TGAACTCCAGCCTGGTCAAC",
-    #                 "CCTCAGCCTCCTGAGTAGCT",
-    #                 ]
-
-    # for tmp_str in test_list:
-    #     print(tmp_str + " : " + str(off_trgt_dict[tmp_str][0]) + ", " + str(off_trgt_dict[tmp_str][1]) + ", " + str(off_trgt_dict[tmp_str][2]))
 
     for i in range(1, 30):
         FILE_NAME_LIST.append(str(i))
 
     seq_cnt_group_by_crpt_id = {}
     re_off_trgt_dict = {}
+    first_merge_dict = {}
+    result_dict = {}
     for f_num in FILE_NAME_LIST:
-        print(str(f_num))
+        print("starting with file [" + str(f_num) + "]")
         df_obj = util.read_excel_2_dataframe(WORK_DIR + CAS_OFF_EXCEL, f_num)
 
-        seq_cnt_group_by_crpt_id, re_off_trgt_dict = util.make_excel_off_target_data(off_trgt_dict, df_obj,
-                                                                   WORK_DIR + CAS_OFF_EXCEL + "off_trgt_", f_num,
-                                                                   seq_cnt_group_by_crpt_id, GUIDE_SEQ_NUM,
-                                                                   re_off_trgt_dict)
+        first_merge_dict = logic_prep.merge_excel_n_off_trgt(df_obj, off_trgt_dict)
+
+        for cas_scr_opt in CAS_SCORE_OPT:
+            for off_trg_opt_arr in FILTER_OUT_OPT:
+                result_dict = logic.filter_out_by_rule(cas_scr_opt, off_trg_opt_arr, MAX_SEQ_NUM, first_merge_dict,
+                                                       result_dict)
+
+    seq_cnt_group_by_crpt_id = util.make_excel_w_off_trgt(WORK_DIR + CAS_OFF_EXCEL + "off_trgt_", "total", result_dict,
+                                                          seq_cnt_group_by_crpt_id)
+
+    re_off_trgt_dict = logic.get_re_off_target_seq(MAX_SEQ_NUM, seq_cnt_group_by_crpt_id, first_merge_dict,
+                                                   re_off_trgt_dict)
 
     util.make_tab_txt_seq_cnt_group_by_crpt_id(WORK_DIR + CAS_OFF_EXCEL + "seq_cnt_group_by_crpt_id_",
                                                seq_cnt_group_by_crpt_id)
 
     util.make_tab_txt_re_off_target_seq(WORK_DIR + CAS_OFF_EXCEL + "re_off_target_seq_",
-                                               re_off_trgt_dict)
+                                        re_off_trgt_dict)
+
+def merge_off_target_indi():
+    logic = Logic.Logics()
+
+    for i in range(1, 30):
+        FILE_NAME_LIST.append(str(i))
+
+    logic.merge_off_target_indi(INITIAL_MRGE_OFF_TRGT, FILE_NAME_LIST, WORK_DIR, CAS_OFF_EXCEL, MAX_SEQ_NUM, FILTER_OUT_OPT_TOT)
 
 def merge_deep_cas_9():
     util = Util.Utils()
@@ -124,6 +127,7 @@ def merge_deep_cas_9():
 
 start_time = clock()
 print("start >>>>>>>>>>>>>>>>>>")
-merge_off_target()
+merge_off_target_total()
+# merge_off_target_indi()
 # merge_deep_cas_9()
 print("::::::::::: %.2f seconds ::::::::::::::" % (clock() - start_time))

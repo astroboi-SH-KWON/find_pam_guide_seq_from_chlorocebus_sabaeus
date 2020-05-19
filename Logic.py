@@ -130,3 +130,116 @@ class Logics:
             print("DONE file_" + key)
             util.make_excel(result_dict, init, key)
         # return result_dict
+
+    """
+    Guide 선정 기준
+    * Mismatch 3개인 것의 개수는 고려하지 않습니다. (너무 많기 때문)
+    1순위 - mismatch 1/2 개수 0인 것에서 Cas9 score 50점 이상
+    2순위 -  Mismatch 1 개수 0인 것에서 Cas9 score 50점 이상 (mismatch 2bp까지 허용)
+    3순위 - Mismatch 고려 안하고 Cas9 score 50점 이상 (mismatch 1bp까지 허용)
+
+    여기서 4개 채워지지 않은 gene (정확히는 transcript)들은 Cas9 score 
+        상위 200개로 다시 list up해서 off-target 돌려서 4개 guide 채우기
+    
+    :param
+        cas9_scre_litmit : min of DeepCas9 score. opt for filtering out
+        off_trg_opt_arr : off_target option array ex) ["1", "0", ""]
+    """
+    def filter_out_by_rule(self, cas9_scre_litmit, off_trg_opt_arr, max_num, data_dict, result_dict):
+
+        for trnscrpt_id, list_arr in data_dict.items():
+
+            is_not_first_id = True
+            if trnscrpt_id in result_dict:
+                if len(result_dict[trnscrpt_id]) > max_num - 1:
+                    continue
+            else:
+                result_dict.update({trnscrpt_id: []})
+                is_not_first_id = False
+
+            for val_arr in list_arr:
+                if len(result_dict[trnscrpt_id]) > max_num - 1:
+                    break
+
+                deep_cas9_score = val_arr[12]
+                off_trgt_arr = val_arr[14]
+
+                if len(off_trgt_arr) == 0:
+                    continue
+
+                if cas9_scre_litmit == 100:
+                    pass
+                elif deep_cas9_score < cas9_scre_litmit:
+                    continue
+
+                off_trgt_flag = False
+                for idx in range(len(off_trg_opt_arr)):
+                    off_cnt_str = off_trg_opt_arr[idx]
+                    if off_cnt_str != "":
+                        if off_trgt_arr[idx] > int(off_cnt_str):
+                            off_trgt_flag = True
+                            break
+
+                if off_trgt_flag:
+                    continue
+                if is_not_first_id:
+                    exist_flag = False
+                    for tmp_arr in result_dict[trnscrpt_id]:
+                        if tmp_arr == val_arr:
+                            exist_flag = True
+                            break
+                    if not exist_flag:
+                        result_dict[trnscrpt_id].append(val_arr)
+                else:
+                    result_dict[trnscrpt_id].append(val_arr)
+
+        return result_dict
+
+    """
+    :param
+        seq_cnt_group_by_crpt_id = {trnscrpt_id: # of seq}
+    """
+    def get_re_off_target_seq(self, max_num, seq_cnt_group_by_crpt_id, data_dict, result_dict):
+        for trnscrpt_id, arr_list in data_dict.items():
+            if seq_cnt_group_by_crpt_id[trnscrpt_id] < max_num:
+                for seq_arr in arr_list:
+                    if trnscrpt_id in result_dict:
+                        result_dict[trnscrpt_id].append(seq_arr[8])
+                    else:
+                        result_dict.update({trnscrpt_id: [seq_arr[8]]})
+        return result_dict
+
+    def merge_off_target_indi(self, init_off_trgt, f_nm_list, wrk_dir, excel_path, max_num, filt_out_opt):
+        util = Util.Utils()
+        logic_prep = LogicPrep.LogicsPrep()
+
+        off_trgt_opt = filt_out_opt[0]
+        cas_scr_opt = filt_out_opt[1]
+
+        off_trgt_dict = util.read_txt_to_dict(init_off_trgt)
+
+        seq_cnt_group_by_crpt_id = {}
+        re_off_trgt_dict = {}
+        for f_num in f_nm_list:
+            print("starting with file [" + str(f_num) + "]")
+            df_obj = util.read_excel_2_dataframe(wrk_dir + excel_path, f_num)
+
+            first_merge_dict = logic_prep.merge_excel_n_off_trgt(df_obj, off_trgt_dict)
+
+            result_dict = {}
+            for cas_opt in cas_scr_opt:
+                for off_trg_opt_arr in off_trgt_opt:
+                    result_dict = self.filter_out_by_rule(cas_opt, off_trg_opt_arr, max_num, first_merge_dict, result_dict)
+
+            seq_cnt_group_by_crpt_id = util.make_excel_w_off_trgt(wrk_dir + excel_path + "off_trgt_", f_num,
+                                                                  result_dict, seq_cnt_group_by_crpt_id)
+
+            re_off_trgt_dict = self.get_re_off_target_seq(max_num, seq_cnt_group_by_crpt_id, first_merge_dict,
+                                                          re_off_trgt_dict)
+            print("done with file [" + str(f_num) + "]\n")
+
+        util.make_tab_txt_seq_cnt_group_by_crpt_id(wrk_dir + excel_path + "seq_cnt_group_by_crpt_id_",
+                                                   seq_cnt_group_by_crpt_id)
+
+        util.make_tab_txt_re_off_target_seq(wrk_dir + excel_path + "re_off_target_seq_",
+                                            re_off_trgt_dict)
